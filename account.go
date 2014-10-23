@@ -8,15 +8,16 @@ import (
 	"crypto/md5"
 
 	"github.com/crowdmob/goamz/dynamodb"
+	"github.com/kerinin/parfait/cio_lite"
 )
 
 const AccountTableName = "parfait_accounts"
 
 type Account struct {
 	UserID string
-	Label string
+	Label  string
 }
- 
+
 // func PartiallyScannedAccounts() []Account {
 // }
 
@@ -33,8 +34,8 @@ func BootstrapAccountDynamoDB(server *dynamodb.Server) error {
 		table_description := dynamodb.TableDescriptionT{
 			TableName: AccountTableName,
 			ProvisionedThroughput: dynamodb.ProvisionedThroughputT{
-				ReadCapacityUnits: 4, 
-				WriteCapacityUnits:20,
+				ReadCapacityUnits:  4,
+				WriteCapacityUnits: 20,
 			},
 			KeySchema: []dynamodb.KeySchemaT{
 				dynamodb.KeySchemaT{AttributeName: "id", KeyType: "HASH"},
@@ -70,7 +71,7 @@ func (a Account) Save(server *dynamodb.Server) error {
 		*dynamodb.NewStringAttribute("label", a.Label),
 	}
 
-	ok, err := t.PutItem(a.dynamoKeyString(), "", attributes)
+	_, err := t.PutItem(a.dynamoKeyString(), "", attributes)
 	if err != nil {
 		return err
 	}
@@ -83,21 +84,32 @@ func (a *Account) Load() (bool, error) {
 	return true, nil
 }
 
-func (a Account) Scan(server *dynamodb.Server) {
-	logger.Warning("Not actually scanning account...")
-	/*
-	for {
-		senders := make(map[string]Sender)
+func (a Account) Scan(server *dynamodb.Server, cio *cio_lite.ContextIOLiteAPI) error {
+	logger.Info("Scanning %v", a)
 
-		for message := range messages {
-			// merge message into senders hash
-		}
-
-		for _, sender := range senders {
-			sender.Merge(server)
-		}
+	folders, err := cio.GetFolders(a.UserID, a.Label, cio_lite.Params{})
+	if err != nil {
+		return err
 	}
+
+	for _, folder := range folders {
+		logger.Warning("Not really scanning folder %v", folder)
+	}
+
+	/*
+		for {
+			senders := make(map[string]Sender)
+
+			for message := range messages {
+				// merge message into senders hash
+			}
+
+			for _, sender := range senders {
+				sender.Merge(server)
+			}
+		}
 	*/
+	return nil
 }
 
 func (a Account) dynamoKeyString() string {

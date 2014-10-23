@@ -14,14 +14,14 @@ const SenderTableName = "parfait_senders"
 
 type Sender struct {
 	Address string `json:address`
-	userID string
-	label string
+	userID  string
+	label   string
 
-	TotalCount uint `json:total_count`
-	UnreadCount uint `json:unread_count`
+	TotalCount    uint `json:total_count`
+	UnreadCount   uint `json:unread_count`
 	AnsweredCount uint `json:answered_count`
-	FlaggedCount uint `json:flagged_count`
-	DraftCount uint `json:draft_count`
+	FlaggedCount  uint `json:flagged_count`
+	DraftCount    uint `json:draft_count`
 }
 
 func NewSender(user_id string, label string, address string) Sender {
@@ -37,8 +37,8 @@ func BootstrapSenderDynamoDB(server *dynamodb.Server) error {
 		table_description := dynamodb.TableDescriptionT{
 			TableName: SenderTableName,
 			ProvisionedThroughput: dynamodb.ProvisionedThroughputT{
-				ReadCapacityUnits: 4, 
-				WriteCapacityUnits:20,
+				ReadCapacityUnits:  4,
+				WriteCapacityUnits: 20,
 			},
 			KeySchema: []dynamodb.KeySchemaT{
 				dynamodb.KeySchemaT{AttributeName: "id", KeyType: "HASH"},
@@ -86,23 +86,33 @@ func (s *Sender) Load(server *dynamodb.Server) error {
 	}
 
 	i, err = strconv.ParseUint(attributes["total_count"].Value, 10, 0)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	s.TotalCount = uint(i)
 
 	i, err = strconv.ParseUint(attributes["unread_count"].Value, 10, 0)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	s.UnreadCount = uint(i)
 
 	i, err = strconv.ParseUint(attributes["answered_count"].Value, 10, 0)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	s.AnsweredCount = uint(i)
 
 	i, err = strconv.ParseUint(attributes["flagged_count"].Value, 10, 0)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	s.FlaggedCount = uint(i)
 
 	i, err = strconv.ParseUint(attributes["draft_count"].Value, 10, 0)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	s.DraftCount = uint(i)
 
 	return nil

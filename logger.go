@@ -5,7 +5,7 @@ import (
 )
 
 var logger = logging.MustGetLogger("parfait")
-var logFormat = logging.MustStringFormatter("[parfait] %{level} %{color}%{message}%{color:reset}")
+var logFormat = logging.MustStringFormatter("%{level} %{color}%{message}%{color:reset} [%{shortfile}]")
 
 func init() {
 	logging.SetFormatter(logFormat)
