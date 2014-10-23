@@ -1,5 +1,14 @@
 # Parfait backend
 
+## Running
+
+`AWS_SECRET_ACCESS_KEY=foo AWS_ACCESS_KEY_ID=bar CID_DEVELOPER_KEY=baz CID_DEVELOPER_SECRET=qux ./parfait`
+
+Now you should be able to curl against it
+
+`curl --verbose -X POST localhost:3000/users/<user_id>/email_accounts/<label>`
+
+
 ## Start scanning a new account (implemented)
 
 This assumes the account has already been connected to Context.IO.  See http://context.io/docs/lite/users/email_accounts for the field definitions of `:id` and `:label`
