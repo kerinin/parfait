@@ -22,6 +22,13 @@ type Account struct {
 // }
 
 func NewAccount(user_id string, label string) Account {
+	if user_id == "" {
+		logger.Warning("Account created with no user_id")
+	}
+	if label == "" {
+		logger.Warning("Account created with no label")
+	}
+
 	return Account{UserID: user_id, Label: label}
 }
 
@@ -84,32 +91,83 @@ func (a *Account) Load() (bool, error) {
 	return true, nil
 }
 
-func (a Account) Scan(server *dynamodb.Server, cio *cio_lite.ContextIOLiteAPI) error {
+func (a Account) Scan(server *dynamodb.Server, cio *cio_lite.ContextIOLite) {
 	logger.Info("Scanning %v", a)
 
 	folders, err := cio.GetFolders(a.UserID, a.Label, cio_lite.Params{})
 	if err != nil {
-		return err
+		logger.Error("Unable to get folders for %v: %v", a, err)
 	}
 
 	for _, folder := range folders {
-		logger.Warning("Not really scanning folder %v", folder)
-	}
+		params := cio_lite.Params{IncludeFlags: true}
+		messages, err := cio.GetMessages(a.UserID, a.Label, folder.Name, params)
 
-	/*
-		for {
-			senders := make(map[string]Sender)
+		if err != nil {
+			logger.Error("Problem fetching messages: %v", err)
+			continue
+		}
 
-			for message := range messages {
-				// merge message into senders hash
+		// Page through all messages in the folder
+		for len(messages) > 0 {
+
+			// Build aggregates
+			senders := make(map[string]*Sender)
+			for _, message := range messages {
+				// Fetch sender's email address
+				message_sender := message.Addresses.From.Email
+				if message_sender == "" {
+					logger.Warning("Unable to find sender email for message %s", message)
+					continue
+				}
+
+				// Find aggregates for sender
+				sender, ok := senders[message_sender]
+				if !ok {
+					sender = NewSender(a.UserID, a.Label, message_sender)
+					senders[message_sender] = sender
+				}
+
+				// Update aggregates
+				sender.TotalCount = sender.TotalCount + 1
+				if message.Flags.Flags.Draft {
+					sender.DraftCount = sender.DraftCount + 1
+				}
+				if message.Flags.Flags.Flagged {
+					sender.FlaggedCount = sender.FlaggedCount + 1
+				}
+				if message.Flags.Flags.Answered {
+					sender.AnsweredCount = sender.AnsweredCount + 1
+				}
+				if !message.Flags.Flags.Read {
+					sender.UnreadCount = sender.UnreadCount + 1
+				}
 			}
 
-			for _, sender := range senders {
-				sender.Merge(server)
+			// Merge into DynamoDB
+			for _, sender := range senders {	
+				_, err := sender.Merge(server)
+
+				if err != nil {
+					logger.Error("Error merging sender: %v", err)
+				}
+			}
+
+			// Fetch the next page of messages
+			params.Offset = params.Offset + len(messages)
+			messages, err = cio.GetMessages(a.UserID, a.Label, folder.Name, params)
+
+			if strings.Contains(err.Error(), "404") {
+				logger.Info("Looks like we've finished reading %v", folder)
+
+			} else if err != nil {
+				logger.Error("Problem fetching messages: %v", err)
+				continue
 			}
 		}
-	*/
-	return nil
+	}
+
+	logger.Info("Scan complete for %v", a)
 }
 
 func (a Account) dynamoKeyString() string {

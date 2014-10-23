@@ -18,8 +18,8 @@ type Params struct {
 	IncludeBody      bool
 	IncludeFlags     bool
 	IncludeNamesOnly bool
-	Limit            uint
-	Offset           uint
+	Limit            int
+	Offset           int
 }
 
 func (p Params) QueryString() string {

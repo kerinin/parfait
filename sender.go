@@ -24,8 +24,18 @@ type Sender struct {
 	DraftCount    uint `json:draft_count`
 }
 
-func NewSender(user_id string, label string, address string) Sender {
-	return Sender{Address: address, userID: user_id, label: label}
+func NewSender(user_id string, label string, address string) *Sender {
+	if user_id == "" {
+		logger.Warning("Account created with no user_id")
+	}
+	if label == "" {
+		logger.Warning("Account created with no label")
+	}
+	if address == "" {
+		logger.Warning("Account created with no address")
+	}
+
+	return &Sender{Address: address, userID: user_id, label: label}
 }
 
 func BootstrapSenderDynamoDB(server *dynamodb.Server) error {
@@ -60,21 +70,29 @@ func BootstrapSenderDynamoDB(server *dynamodb.Server) error {
 	return nil
 }
 
+func (s Sender) String() string {
+	return fmt.Sprintf("<%v:%d:%d:%d:%d:%d>", s.Address, s.TotalCount, s.UnreadCount, s.AnsweredCount, s.FlaggedCount, s.DraftCount)
+}
+
 func (s Sender) Merge(server *dynamodb.Server) (bool, error) {
+	logger.Info("Merging %v into dynamo", s)
+
 	t := s.dynamoTable(server)
 
 	attributes := []dynamodb.Attribute{
-		*dynamodb.NewNumericAttribute("total_count", string(s.TotalCount)),
-		*dynamodb.NewNumericAttribute("unread_count", string(s.UnreadCount)),
-		*dynamodb.NewNumericAttribute("answered_count", string(s.AnsweredCount)),
-		*dynamodb.NewNumericAttribute("flagged_count", string(s.FlaggedCount)),
-		*dynamodb.NewNumericAttribute("draft_count", string(s.DraftCount)),
+		*dynamodb.NewNumericAttribute("total_count", fmt.Sprintf("%d", s.TotalCount)),
+		*dynamodb.NewNumericAttribute("unread_count", fmt.Sprintf("%d",s.UnreadCount)),
+		*dynamodb.NewNumericAttribute("answered_count", fmt.Sprintf("%d", s.AnsweredCount)),
+		*dynamodb.NewNumericAttribute("flagged_count", fmt.Sprintf("%d", s.FlaggedCount)),
+		*dynamodb.NewNumericAttribute("draft_count", fmt.Sprintf("%d", s.DraftCount)),
 	}
 
 	return t.AddAttributes(s.dynamoKey(), attributes)
 }
 
 func (s *Sender) Load(server *dynamodb.Server) error {
+	logger.Info("Loading %v from dynamo", s)
+
 	var err error
 	var i uint64
 
@@ -119,9 +137,9 @@ func (s *Sender) Load(server *dynamodb.Server) error {
 }
 
 func (s Sender) dynamoKey() *dynamodb.Key {
-	raw_key := fmt.Sprintf("%v:%v:%v", s.userID, s.label)
+	raw_key := fmt.Sprintf("%v:%v:%v", s.Address, s.userID, s.label)
 	key_bytes := md5.Sum([]byte(raw_key))
-	key := fmt.Sprintf("sender:%v", key_bytes)
+	key := fmt.Sprintf("sender:%x", key_bytes)
 
 	return &dynamodb.Key{HashKey: key}
 }

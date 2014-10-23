@@ -16,16 +16,16 @@ const ctxio = "https://api.context.io"
 
 var successRegex = regexp.MustCompile(`^2`)
 
-type ContextIOLiteAPI struct {
+type ContextIOLite struct {
 	apiKey    string
 	apiSecret string
 }
 
-func NewContextIOLiteAPI(key, secret string) *ContextIOLiteAPI {
-	return &ContextIOLiteAPI{apiKey: key, apiSecret: secret}
+func NewContextIOLite(key, secret string) *ContextIOLite {
+	return &ContextIOLite{apiKey: key, apiSecret: secret}
 }
 
-func (cio ContextIOLiteAPI) GetUsers(params Params) ([]User, error) {
+func (cio ContextIOLite) GetUsers(params Params) ([]User, error) {
 	url := fmt.Sprintf("%v/lite/users%s", ctxio, params.QueryString())
 	var users []User
 
@@ -36,8 +36,19 @@ func (cio ContextIOLiteAPI) GetUsers(params Params) ([]User, error) {
 	return users, nil
 }
 
-func (cio ContextIOLiteAPI) GetFolders(id, label string, params Params) ([]Folder, error) {
-	url := fmt.Sprintf("%v/lite/users/%s/email_accounts/%s/folders%s", ctxio, id, label, params.QueryString())
+func (cio ContextIOLite) GetEmailAccount(id, label string, params Params) (EmailAccount, error) {
+	url := fmt.Sprintf("%v/lite/users/%s/email_accounts/%s%s", ctxio, id, url.QueryEscape(label), params.QueryString())
+	var email_account EmailAccount
+
+	if err := cio.request("GET", url, &email_account); err != nil {
+		return email_account, err
+	}
+
+	return email_account, nil
+}
+
+func (cio ContextIOLite) GetFolders(id, label string, params Params) ([]Folder, error) {
+	url := fmt.Sprintf("%v/lite/users/%s/email_accounts/%s/folders%s", ctxio, id, url.QueryEscape(label), params.QueryString())
 	var folders []Folder
 
 	if err := cio.request("GET", url, &folders); err != nil {
@@ -47,8 +58,8 @@ func (cio ContextIOLiteAPI) GetFolders(id, label string, params Params) ([]Folde
 	return folders, nil
 }
 
-func (cio ContextIOLiteAPI) GetMessages(id string, label string, folder string, params Params) ([]Message, error) {
-	url := fmt.Sprintf("%v/lite/users/%s/email_accounts/%s/folders/%s/messages%s", ctxio, id, label, folder, params.QueryString())
+func (cio ContextIOLite) GetMessages(id string, label string, folder string, params Params) ([]Message, error) {
+	url := fmt.Sprintf("%v/lite/users/%s/email_accounts/%s/folders/%s/messages%s", ctxio, id, url.QueryEscape(label), url.QueryEscape(folder), params.QueryString())
 	var messages []Message
 
 	if err := cio.request("GET", url, &messages); err != nil {
@@ -58,7 +69,7 @@ func (cio ContextIOLiteAPI) GetMessages(id string, label string, folder string, 
 	return messages, nil
 }
 
-func (cio ContextIOLiteAPI) request(method, url string, ret interface{}) error {
+func (cio ContextIOLite) request(method, url string, ret interface{}) error {
 	logger.Debug("Making %v request to %v", method, url)
 	var err error
 
@@ -69,17 +80,19 @@ func (cio ContextIOLiteAPI) request(method, url string, ret interface{}) error {
 		return fmt.Errorf("CIO API Returns error: %v", err)
 	}
 
+	body, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return fmt.Errorf("Error reading CIO Response: %v", err)
+	}
+
 	if !successRegex.MatchString(resp.Status) {
+		// logger.Debug("Received Body:\n%s", body)
 		return fmt.Errorf("CIO API returned status %v", resp.Status)
 	}
 
 	if ret != nil {
-		body, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			return fmt.Errorf("Error reading CIO Response: %v", err)
-		}
-
+		// logger.Debug("Received JSON:\n%s", body)
 		err = json.Unmarshal(body, &ret)
 		if err != nil {
 			return fmt.Errorf("Error decoding CIO Response JSON: %v", err)
@@ -89,7 +102,7 @@ func (cio ContextIOLiteAPI) request(method, url string, ret interface{}) error {
 	return nil
 }
 
-func (cio ContextIOLiteAPI) sign_oauth(req *http.Request) {
+func (cio ContextIOLite) sign_oauth(req *http.Request) {
 	var client oauth.Client
 	credentials := oauth.Credentials{cio.apiKey, cio.apiSecret}
 	client.Credentials = credentials

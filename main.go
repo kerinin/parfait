@@ -33,7 +33,7 @@ func main() {
 		logger.Error("CIO_DEVELOPER_KEY and CIO_DEVELOPER_SECRET must be set in your environment (export CIO_DEVELOPER_KEY=foo)")
 		return
 	}
-	cio := cio_lite.NewContextIOLiteAPI(cio_key, cio_secret)
+	cio := cio_lite.NewContextIOLite(cio_key, cio_secret)
 	logger.Debug("Checking CIO credentials...")
 	users, err := cio.GetUsers(cio_lite.Params{})
 	logger.Debug("Found %d users", len(users))
